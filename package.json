@@ -1,0 +1,21 @@
+{
+  "name": "dolar-scrapper",
+  "version": "1.0.0",
+  "description": "Terminal Dolar Scrapper",
+  "main": "dolar-scrapper.js",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "colors": "^1.4.0",
+    "draftlog": "^1.0.12",
+    "promise-retry": "^2.0.1",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.6",
+    "yargs": "^16.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC"
+}
