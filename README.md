@@ -28,3 +28,12 @@ USDC | 157.41 {0.01}                              | ARS -> USD: 190.59 | USD -> 
 - [x] Colors
 - [x] Retry
 
+
+### Convertions
+
+- [x] AY24 (a.k.a MEP or 'Bolsa')
+- [x] Blue
+- [x] Official from BNA (with tax)
+- [x] DAI (crypto)
+- [x] USDC (crypto)
+
