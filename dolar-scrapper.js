@@ -37,9 +37,8 @@ class Retriever {
     }
 }
 
-class MEPRetriever extends Retriever {
-    name() { return 'MEP'; }
-
+class IOLRetriever extends Retriever {
+    
     retrieveValue(url) {
         return this.retry(requestPromise(url))
             .then(html => {
@@ -52,18 +51,47 @@ class MEPRetriever extends Retriever {
             });
     }
 
+    getUrls() {
+        throw Error('Must be implemented and returns {ars, usd}');
+    }
+
     retrieveMep() {
-        const ay24Promise = this.retrieveValue("https://www.invertironline.com/titulo/cotizacion/BCBA/AY24/")
-        const ay24dPromise = this.retrieveValue("https://www.invertironline.com/titulo/cotizacion/BCBA/AY24D/")
-        return Promise.all([ay24Promise, ay24dPromise])
-            .then(([ay24, ay24d]) => {
-                const mep = {ay24, ay24d, total: ay24/ay24d};
-                return {value: mep.total, pretty: `${mep.total} [${mep.ay24} / ${mep.ay24d}]`};
+        const {ars, usd} = this.getUrls();
+        const titlePromise = this.retrieveValue(ars);
+        const titleDPromise = this.retrieveValue(usd);
+        return Promise.all([titlePromise, titleDPromise])
+            .then(([title, titleD]) => {
+                const mep = {title, titleD, total: title/titleD};
+                return {value: mep.total, pretty: `${mep.total} [${mep.title} / ${mep.titleD}]`};
             });
     }
 
     retrieve() {
         return this.retrieveMep();
+    }
+
+
+}
+
+class AY24Retriever extends IOLRetriever {
+    name() { return 'AY24'; }
+
+    getUrls() {
+        return {
+            ars: "https://www.invertironline.com/titulo/cotizacion/BCBA/AY24/",
+            usd: "https://www.invertironline.com/titulo/cotizacion/BCBA/AY24D/"
+        }
+    }
+}
+
+class AL30Retriever extends IOLRetriever {
+    name() { return 'AL30'; }
+
+    getUrls() {
+        return {
+            ars: "https://www.invertironline.com/titulo/cotizacion/BCBA/AL30/BONO-REP.-ARGENTINA-USD-STEP-UP-2030/",
+            usd: "https://www.invertironline.com/titulo/cotizacion/BCBA/AL30D/BONO-REP.-ARGENTINA-USD-STEP-UP-2030/"
+        }
     }
 }
 
@@ -160,7 +188,7 @@ class ConsoleLine {
     }
 }
 
-const retrievers = [MEPRetriever, BlueRetriever, OfficialRetriever, DAIRetriever, USDCRetriever];
+const retrievers = [AY24Retriever, AL30Retriever, BlueRetriever, OfficialRetriever, DAIRetriever, USDCRetriever];
 retrievers.forEach(retrieverClass => {
     const instance = new retrieverClass();
     const name = instance.name().padEnd(5, ' ');
