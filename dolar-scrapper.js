@@ -11,12 +11,16 @@ const argv = yargs
     .option('ars', {
         alias: 'p',
         description: 'Amount of ARS to convert to USD',
-        type: 'integer',
+        type: 'number',
     })
     .option('usd', {
         alias: 'd',
         description: 'Amount of USD to convert to ARS',
-        type: 'integer',
+        type: 'number',
+    })
+    .option('al30', {
+        description: 'Unit price of buyed al30 to see real conversion',
+        type: 'number',
     })
     .help()
     .alias('help', 'h')
@@ -62,7 +66,7 @@ class IOLRetriever extends Retriever {
         return Promise.all([titlePromise, titleDPromise])
             .then(([title, titleD]) => {
                 const mep = {title, titleD, total: title/titleD};
-                return {value: mep.total, pretty: `${mep.total} [${mep.title} / ${mep.titleD}]`};
+                return {value: mep.total, pretty: `${mep.total.toFixed(2)} [${mep.title} / ${mep.titleD}]`, extra: {ars: mep.title, usd: mep.titleD}};
             });
     }
 
@@ -93,6 +97,17 @@ class AL30Retriever extends IOLRetriever {
             usd: "https://www.invertironline.com/titulo/cotizacion/BCBA/AL30D/BONO-REP.-ARGENTINA-USD-STEP-UP-2030/"
         }
     }
+
+    async retrieve() {
+        const data = await super.retrieve();
+        if (argv.al30) { 
+            const value = argv.al30/data.extra.usd;
+            const actualValue = `${data.value.toFixed(2)}`;
+            const pretty = `${value.toFixed(2)} [${argv.al30} / ${data.extra.usd}] {${actualValue}}`;
+            return {...data, pretty, value};
+        }
+        return data;
+    }
 }
 
 class BlueRetriever extends Retriever {
@@ -102,7 +117,8 @@ class BlueRetriever extends Retriever {
         return this.retry(requestPromise("https://api-contenidos.lanacion.com.ar/json/V3/economia/cotizacionblue/DBLUE"))
             .then(response => {
                 const blueData = JSON.parse(response);
-                return {value: parseFloat(blueData.venta.replace(',', '.')), pretty: `${blueData.venta}`};
+                const value = parseFloat(blueData.venta.replace(',', '.'));
+                return {value, pretty: `${value.toFixed(2)}`};
             });
     }
 }
@@ -133,7 +149,7 @@ class DAIRetriever extends Retriever {
                 const arsdai = parseFloat(data.object.daiars.selling_price);
                 const daiusd = parseFloat(data.object.daiusd.purchase_price);
                 const daiToUsd = arsdai/daiusd; 
-                return { value: daiToUsd, pretty: `${daiToUsd}` };
+                return { value: daiToUsd, pretty: `${daiToUsd.toFixed(2)}` };
             });
     }
 }
