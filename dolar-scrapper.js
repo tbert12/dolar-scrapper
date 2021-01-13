@@ -22,6 +22,11 @@ const argv = yargs
         description: 'Unit price of buyed al30 to see real conversion',
         type: 'number',
     })
+    .option('refresh', {
+        alias: 'r',
+        describe: 'Refresh every {r} seconds',
+        type: 'number'
+    })
     .help()
     .alias('help', 'h')
     .argv;
@@ -176,7 +181,6 @@ class ConsoleLine {
     constructor(message) {
         this.message = message;
         this.consoleUpdated = console.draft(message);
-        this.startSpinner();
     }
     setMessage(message) {
         this.message = message;
@@ -204,30 +208,48 @@ class ConsoleLine {
     }
 }
 
-const retrievers = [AY24Retriever, AL30Retriever, BlueRetriever, OfficialRetriever, DAIRetriever, USDCRetriever];
-retrievers.forEach(retrieverClass => {
+async function instanceRetrieve(name, instance, consoleLine) {
+    instance.onRetry((number) => {
+        if (number > 1) {
+                consoleLine.setMessage(`${name}| Retrying ${number}`.bold.yellow);
+        }
+    });
+    consoleLine.startSpinner();
+    return instance.retrieve()
+        .then(data => {
+                let message = `${name}| ${data.pretty}`;
+                if (argv.ars) {
+                    const conversion = `${(parseFloat(argv.ars)/data.value).toFixed(2)}`.bold.green;
+                    message = `${message.padEnd(50, ' ')}| ARS -> USD: ${conversion}`;
+                }
+                if (argv.usd) {
+                    const conversion = `${(parseFloat(argv.usd) * data.value).toFixed(2)}`.bold.blue;
+                    message = `${message.padEnd(90, ' ')}| USD -> ARS: ${conversion}`;
+                }
+                consoleLine.endSpinner(message);
+        })
+        .catch(err => consoleLine.endSpinner(`${name}| ERR: ${err.message}`.bold.red));
+}
+
+async function retrieveAndLog(retrieverClass) {
     const instance = new retrieverClass();
     const name = instance.name().padEnd(5, ' ');
     const consoleLine = new ConsoleLine(`${name}| Loading`);
-    instance.onRetry((number) => {
-        if (number > 1) {
-            consoleLine.setMessage(`${name}| Retrying ${number}`.bold.yellow);
-        }
-    });
-    
-    instance.retrieve()
-        .then(data => {
-            let message = `${name}| ${data.pretty}`;
-            if (argv.ars) {
-                const conversion = `${(parseFloat(argv.ars)/data.value).toFixed(2)}`.bold.green;
-                message = `${message.padEnd(50, ' ')}| ARS -> USD: ${conversion}`;
-            }
-            if (argv.usd) {
-                const conversion = `${(parseFloat(argv.usd) * data.value).toFixed(2)}`.bold.blue;
-                message = `${message.padEnd(90, ' ')}| USD -> ARS: ${conversion}`;
-            }
-            consoleLine.endSpinner(message);
-        })
-        .catch(err => consoleLine.endSpinner(`${name}| ERR: ${err.message}`.bold.red));
-});
+    if (!argv.refresh) {
+        return instanceRetrieve(name, instance, consoleLine);
+    }
+    while (true) {
+        await instanceRetrieve(name, instance, consoleLine);
+        await new Promise((accept) => setTimeout(() => accept(), argv.refresh * 1000));
+    }
+}
 
+async function show() {
+	const retrievers = [AY24Retriever, AL30Retriever, BlueRetriever, OfficialRetriever, DAIRetriever, USDCRetriever];
+	const retrievePromises = retrievers.map(retrieverClass => {
+        return retrieveAndLog(retrieverClass);
+    });
+    return Promise.all(retrievePromises);
+}
+
+show().catch(err => console.log(err));
